@@ -4,6 +4,7 @@ import sys
 import os
 import subprocess
 from pathlib import Path
+from simple_term_menu import TerminalMenu
 
 def run_command(cmd, cwd=None, check=True, input=None):
     """Run a shell command and return the result."""
@@ -36,6 +37,30 @@ def get_worktree_path(branch_name):
     
     return None
 
+def get_all_worktrees():
+    """Get all worktrees with their branch names."""
+    result = run_command("git worktree list --porcelain")
+    lines = result.stdout.strip().split('\n')
+    
+    worktrees = []
+    current_worktree = None
+    current_path = None
+    
+    for line in lines:
+        if line.startswith("worktree "):
+            current_path = line.split(" ", 1)[1]
+        elif line.startswith("branch ") and current_path:
+            branch = line.split(" ", 1)[1]
+            if branch.startswith("refs/heads/"):
+                branch_name = branch.replace("refs/heads/", "")
+                # Skip the main worktree (git root)
+                git_root = get_git_root()
+                if current_path != git_root:
+                    worktrees.append((branch_name, current_path))
+            current_path = None
+    
+    return worktrees
+
 def branch_exists(branch_name):
     """Check if a branch exists."""
     result = run_command(f"git show-ref --verify --quiet refs/heads/{branch_name}", check=False)
@@ -46,7 +71,8 @@ def main():
         print("Usage: claudebg <command> [args]")
         print("Commands:")
         print("  create <branch-name>   Create and switch to a git worktree")
-        print("  destroy <branch-name>  Remove worktree and delete merged branch")
+        print("  destroy [branch-name]  Remove worktree and delete merged branch")
+        print("                         (interactive mode if no branch name given)")
         sys.exit(1)
     
     command = sys.argv[1]
@@ -58,17 +84,25 @@ def main():
         branch_name = sys.argv[2]
         create_worktree(branch_name)
     elif command == "destroy":
-        if len(sys.argv) != 3:
-            print("Usage: claudebg destroy <branch-name>")
+        if len(sys.argv) == 2:
+            # Interactive mode
+            destroy_worktree_interactive()
+        elif len(sys.argv) == 3:
+            # Direct mode with branch name
+            branch_name = sys.argv[2]
+            destroy_worktree(branch_name)
+        else:
+            print("Usage: claudebg destroy [branch-name]")
+            print("  Without branch-name: interactive mode")
+            print("  With branch-name: direct mode")
             sys.exit(1)
-        branch_name = sys.argv[2]
-        destroy_worktree(branch_name)
     else:
         print(f"Unknown command: {command}")
         print("Usage: claudebg <command> [args]")
         print("Commands:")
         print("  create <branch-name>   Create and switch to a git worktree")
-        print("  destroy <branch-name>  Remove worktree and delete merged branch")
+        print("  destroy [branch-name]  Remove worktree and delete merged branch")
+        print("                         (interactive mode if no branch name given)")
         sys.exit(1)
 
 def create_worktree(branch_name):
@@ -161,6 +195,54 @@ def has_remote_branch(branch_name):
     """Check if a remote branch exists."""
     result = run_command(f"git ls-remote --heads origin {branch_name}", check=False)
     return bool(result.stdout.strip())
+
+def destroy_worktree_interactive():
+    """Interactive mode for destroying worktrees."""
+    # Get all worktrees
+    worktrees = get_all_worktrees()
+    
+    if not worktrees:
+        print("No worktrees found to destroy.")
+        return
+    
+    # Create menu options
+    menu_options = []
+    for branch_name, path in worktrees:
+        # Get parent branch info
+        parent = get_branch_parent(branch_name)
+        parent_info = f" (parent: {parent})" if parent else ""
+        menu_options.append(f"{branch_name}{parent_info} - {path}")
+    
+    # Add cancel option
+    menu_options.append("Cancel")
+    
+    # Show interactive menu
+    terminal_menu = TerminalMenu(
+        menu_options,
+        title="Select a worktree to destroy:"
+    )
+    menu_entry_index = terminal_menu.show()
+    
+    # Handle selection
+    if menu_entry_index is None or menu_entry_index == len(menu_options) - 1:
+        print("Cancelled.")
+        return
+    
+    # Get selected branch name
+    selected_branch = worktrees[menu_entry_index][0]
+    
+    # Confirm destruction
+    print(f"\nSelected: {selected_branch}")
+    confirm_menu = TerminalMenu(
+        ["Yes, destroy it", "No, cancel"],
+        title=f"Are you sure you want to destroy the worktree for '{selected_branch}'?"
+    )
+    confirm_index = confirm_menu.show()
+    
+    if confirm_index == 0:
+        destroy_worktree(selected_branch)
+    else:
+        print("Cancelled.")
 
 def destroy_worktree(branch_name):
     # Check if worktree exists
