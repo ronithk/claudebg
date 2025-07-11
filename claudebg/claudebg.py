@@ -71,8 +71,9 @@ def main():
         print("Usage: claudebg <command> [args]")
         print("Commands:")
         print("  create <branch-name>   Create and switch to a git worktree")
-        print("  destroy [branch-name]  Remove worktree and delete merged branch")
-        print("                         (interactive mode if no branch name given)")
+        print("  destroy [branch-name] [--force]  Remove worktree and delete branch")
+        print("                                   (interactive mode if no branch name given)")
+        print("                                   --force: skip merge check and force delete")
         sys.exit(1)
     
     command = sys.argv[1]
@@ -84,25 +85,38 @@ def main():
         branch_name = sys.argv[2]
         create_worktree(branch_name)
     elif command == "destroy":
-        if len(sys.argv) == 2:
+        force = False
+        branch_name = None
+        
+        # Parse arguments
+        args = sys.argv[2:]
+        i = 0
+        while i < len(args):
+            if args[i] == "--force":
+                force = True
+            else:
+                if branch_name is None:
+                    branch_name = args[i]
+                else:
+                    print("Error: Too many arguments")
+                    print("Usage: claudebg destroy [branch-name] [--force]")
+                    sys.exit(1)
+            i += 1
+        
+        if branch_name is None:
             # Interactive mode
-            destroy_worktree_interactive()
-        elif len(sys.argv) == 3:
-            # Direct mode with branch name
-            branch_name = sys.argv[2]
-            destroy_worktree(branch_name)
+            destroy_worktree_interactive(force=force)
         else:
-            print("Usage: claudebg destroy [branch-name]")
-            print("  Without branch-name: interactive mode")
-            print("  With branch-name: direct mode")
-            sys.exit(1)
+            # Direct mode with branch name
+            destroy_worktree(branch_name, force=force)
     else:
         print(f"Unknown command: {command}")
         print("Usage: claudebg <command> [args]")
         print("Commands:")
         print("  create <branch-name>   Create and switch to a git worktree")
-        print("  destroy [branch-name]  Remove worktree and delete merged branch")
-        print("                         (interactive mode if no branch name given)")
+        print("  destroy [branch-name] [--force]  Remove worktree and delete branch")
+        print("                                   (interactive mode if no branch name given)")
+        print("                                   --force: skip merge check and force delete")
         sys.exit(1)
 
 def create_worktree(branch_name):
@@ -196,7 +210,7 @@ def has_remote_branch(branch_name):
     result = run_command(f"git ls-remote --heads origin {branch_name}", check=False)
     return bool(result.stdout.strip())
 
-def destroy_worktree_interactive():
+def destroy_worktree_interactive(force=False):
     """Interactive mode for destroying worktrees."""
     # Get all worktrees
     worktrees = get_all_worktrees()
@@ -240,11 +254,11 @@ def destroy_worktree_interactive():
     confirm_index = confirm_menu.show()
     
     if confirm_index == 0:
-        destroy_worktree(selected_branch)
+        destroy_worktree(selected_branch, force=force)
     else:
         print("Cancelled.")
 
-def destroy_worktree(branch_name):
+def destroy_worktree(branch_name, force=False):
     # Check if worktree exists
     worktree_path = get_worktree_path(branch_name)
     if not worktree_path:
@@ -264,21 +278,28 @@ def destroy_worktree(branch_name):
             sys.exit(1)
         print(f"Using '{parent_branch}' as the parent branch")
     
-    print(f"Checking if '{branch_name}' has been merged into '{parent_branch}'...")
-    
-    # Check if the branch has been merged
-    if not is_branch_merged(branch_name, parent_branch):
-        print(f"Error: Branch '{branch_name}' contains unmerged changes.")
-        print(f"Please merge the changes into '{parent_branch}' before destroying the worktree.")
-        sys.exit(1)
+    if not force:
+        print(f"Checking if '{branch_name}' has been merged into '{parent_branch}'...")
+        
+        # Check if the branch has been merged
+        if not is_branch_merged(branch_name, parent_branch):
+            print(f"Error: Branch '{branch_name}' contains unmerged changes.")
+            print(f"Please merge the changes into '{parent_branch}' before destroying the worktree.")
+            print(f"Or use --force to delete anyway.")
+            sys.exit(1)
+    else:
+        print(f"Force flag enabled, skipping merge check...")
     
     # Remove the worktree
     print(f"Removing worktree at: {worktree_path}")
-    run_command(f"git worktree remove '{worktree_path}'")
+    run_command(f"git worktree remove --force '{worktree_path}'")
     
     # Delete the local branch
     print(f"Deleting local branch: {branch_name}")
-    run_command(f"git branch -d {branch_name}")
+    if force:
+        run_command(f"git branch -D {branch_name}")
+    else:
+        run_command(f"git branch -d {branch_name}")
     
     # Delete the remote branch if it exists
     if has_remote_branch(branch_name):
