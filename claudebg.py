@@ -1,4 +1,9 @@
-#!/usr/bin/env python3
+# /// script
+# requires-python = ">=3.12"
+# dependencies = [
+#   "simple-term-menu",
+# ]
+# ///
 
 import sys
 import os
