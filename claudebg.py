@@ -257,10 +257,7 @@ def destroy_worktree_interactive(force=False):
     # Create menu options
     menu_options = []
     for branch_name, path in worktrees:
-        # Get parent branch info
-        parent = get_branch_parent(branch_name)
-        parent_info = f" (parent: {parent})" if parent else ""
-        menu_options.append(f"{branch_name}{parent_info} - {path}")
+        menu_options.append(branch_name)
 
     # Add cancel option
     menu_options.append("Cancel")
