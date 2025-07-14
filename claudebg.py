@@ -86,6 +86,10 @@ def main():
         print("Usage: claudebg <command> [args]")
         print("Commands:")
         print("  create <branch-name>   Create and switch to a git worktree")
+        print("  attach [branch-name]   Attach to an existing worktree")
+        print(
+            "                         (interactive mode if no branch name given)"
+        )
         print("  destroy [branch-name] [--force]  Remove worktree and delete branch")
         print(
             "                                   (interactive mode if no branch name given)"
@@ -103,6 +107,18 @@ def main():
             sys.exit(1)
         branch_name = sys.argv[2]
         create_worktree(branch_name)
+    elif command == "attach":
+        if len(sys.argv) > 3:
+            print("Usage: claudebg attach [branch-name]")
+            sys.exit(1)
+
+        if len(sys.argv) == 3:
+            # Direct mode with branch name
+            branch_name = sys.argv[2]
+            attach_worktree(branch_name)
+        else:
+            # Interactive mode
+            attach_worktree_interactive()
     elif command == "destroy":
         force = False
         branch_name = None
@@ -133,6 +149,10 @@ def main():
         print("Usage: claudebg <command> [args]")
         print("Commands:")
         print("  create <branch-name>   Create and switch to a git worktree")
+        print("  attach [branch-name]   Attach to an existing worktree")
+        print(
+            "                         (interactive mode if no branch name given)"
+        )
         print("  destroy [branch-name] [--force]  Remove worktree and delete branch")
         print(
             "                                   (interactive mode if no branch name given)"
@@ -196,6 +216,70 @@ def create_worktree(branch_name):
     os.chdir(target_dir)
     print(f"Launching zellij in: {target_dir}")
     os.execvp("zellij", ["zellij", "--layout", "claude"])
+
+
+def attach_worktree(branch_name):
+    """Attach to an existing worktree for the given branch name."""
+    # Get current directory and git root
+    current_dir = os.getcwd()
+    git_root = get_git_root()
+
+    # Calculate relative path from git root to current directory
+    relative_path = os.path.relpath(current_dir, git_root)
+    if relative_path == ".":
+        relative_path = ""
+
+    # Check if worktree exists
+    worktree_path = get_worktree_path(branch_name)
+
+    if not worktree_path:
+        print(f"Error: No worktree found for branch '{branch_name}'")
+        sys.exit(1)
+
+    # Navigate to the worktree directory (and subdirectory if needed)
+    target_dir = worktree_path
+    if relative_path:
+        target_dir = os.path.join(worktree_path, relative_path)
+        # Create subdirectory if it doesn't exist
+        os.makedirs(target_dir, exist_ok=True)
+
+    # Change to the target directory and run zellij
+    os.chdir(target_dir)
+    print(f"Attaching to worktree in: {target_dir}")
+    os.execvp("zellij", ["zellij", "--layout", "claude"])
+
+
+def attach_worktree_interactive():
+    """Interactive mode for attaching to worktrees."""
+    # Get all worktrees
+    worktrees = get_all_worktrees()
+
+    if not worktrees:
+        print("No worktrees found to attach to.")
+        return
+
+    # Create menu options
+    menu_options = []
+    for branch_name, path in worktrees:
+        menu_options.append(branch_name)
+
+    # Add cancel option
+    menu_options.append("Cancel")
+
+    # Show interactive menu
+    terminal_menu = TerminalMenu(menu_options, title="Select a worktree to attach to:")
+    menu_entry_index = terminal_menu.show()
+
+    # Handle selection
+    if menu_entry_index is None or menu_entry_index == len(menu_options) - 1:
+        print("Cancelled.")
+        return
+
+    # Get selected branch name
+    selected_branch = worktrees[menu_entry_index][0]
+
+    # Attach to the selected worktree
+    attach_worktree(selected_branch)
 
 
 def get_current_branch():
