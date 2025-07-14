@@ -159,7 +159,15 @@ def create_worktree(branch_name):
     # Check if worktree already exists
     worktree_path = get_worktree_path(branch_name)
 
-    if not worktree_path:
+    if worktree_path:
+        # Worktree already exists, prompt the user
+        print(f"Worktree '{branch_name}' already exists.")
+        response = input("Would you like to attach instead? (y/n): ").strip().lower()
+
+        if response != 'y':
+            print("Operation cancelled.")
+            sys.exit(0)
+    else:
         # Create branch if it doesn't exist
         if not branch_exists(branch_name):
             print(f"Creating new branch: {branch_name} from {parent_branch}")
