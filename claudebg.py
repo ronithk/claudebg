@@ -88,9 +88,7 @@ def main():
         print("Commands:")
         print("  create <branch-name>   Create and switch to a git worktree")
         print("  attach [branch-name]   Attach to an existing worktree")
-        print(
-            "                         (interactive mode if no branch name given)"
-        )
+        print("                         (interactive mode if no branch name given)")
         print("  destroy [branch-name] [--force]  Remove worktree and delete branch")
         print(
             "                                   (interactive mode if no branch name given)"
@@ -98,7 +96,9 @@ def main():
         print(
             "                                   --force: skip merge check and force delete"
         )
-        print("  intervene <branch-name>          Move worktree changes back to main repo")
+        print(
+            "  intervene <branch-name>          Move worktree changes back to main repo"
+        )
         sys.exit(1)
 
     command = sys.argv[1]
@@ -158,9 +158,7 @@ def main():
         print("Commands:")
         print("  create <branch-name>   Create and switch to a git worktree")
         print("  attach [branch-name]   Attach to an existing worktree")
-        print(
-            "                         (interactive mode if no branch name given)"
-        )
+        print("                         (interactive mode if no branch name given)")
         print("  destroy [branch-name] [--force]  Remove worktree and delete branch")
         print(
             "                                   (interactive mode if no branch name given)"
@@ -168,7 +166,9 @@ def main():
         print(
             "                                   --force: skip merge check and force delete"
         )
-        print("  intervene <branch-name>          Move worktree changes back to main repo")
+        print(
+            "  intervene <branch-name>          Move worktree changes back to main repo"
+        )
         sys.exit(1)
 
 
@@ -193,7 +193,7 @@ def create_worktree(branch_name):
         print(f"Worktree '{branch_name}' already exists.")
         response = input("Would you like to attach instead? (y/n): ").strip().lower()
 
-        if response != 'y':
+        if response != "y":
             print("Operation cancelled.")
             sys.exit(0)
     else:
@@ -398,8 +398,10 @@ def has_unstaged_changes(cwd=None):
 def stash_changes():
     """Stash changes interactively."""
     print("You have unstaged changes in your working directory.")
-    response = input("Would you like to stash them to continue? (y/n): ").strip().lower()
-    if response == 'y':
+    response = (
+        input("Would you like to stash them to continue? (y/n): ").strip().lower()
+    )
+    if response == "y":
         run_command("git stash push -m 'claudebg intervene: stashed changes'")
         return True
     return False
@@ -433,18 +435,20 @@ def intervene_worktree(branch_name):
     patch_file = None
     if has_unstaged_changes(cwd=worktree_path):
         print(f"Found unstaged changes in worktree '{branch_name}'")
-        
+
         # Export changes to patch file
         print(f"Exporting changes to patch file...")
         patch_content = run_command("git diff", cwd=worktree_path).stdout
-        
+
         # Only create patch file if there's actual content
         if patch_content.strip():
             # Create temporary patch file
-            with tempfile.NamedTemporaryFile(mode='w', delete=False, suffix='.patch') as f:
+            with tempfile.NamedTemporaryFile(
+                mode="w", delete=False, suffix=".patch"
+            ) as f:
                 patch_file = f.name
                 f.write(patch_content)
-        
+
         # Reset worktree to latest commit
         print(f"Resetting worktree to latest commit...")
         run_command("git reset --hard", cwd=worktree_path)
@@ -477,8 +481,12 @@ def intervene_worktree(branch_name):
                     pass
 
     # Prompt to start claude code session
-    response = input("\nWould you like to start a claude code session? (y/n): ").strip().lower()
-    if response == 'y':
+    response = (
+        input("\nWould you like to start a claude code session? (y/n): ")
+        .strip()
+        .lower()
+    )
+    if response == "y":
         print("Starting claude code session...")
         os.system("code")
 
