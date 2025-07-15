@@ -453,9 +453,7 @@ def intervene_worktree(branch_name):
             ) as f:
                 patch_file = f.name
                 f.write(patch_content)
-            print(f"Created patch file: {patch_file} ({len(patch_content)} bytes)")
-        else:
-            print("Warning: No diff content found")
+            print(f"Created patch file ({len(patch_content)} bytes)")
 
         # Reset worktree to latest commit
         print(f"Resetting worktree to latest commit...")
@@ -470,9 +468,6 @@ def intervene_worktree(branch_name):
     run_command(f"git checkout {branch_name}")
 
     # Apply patch if we created one
-    print(f"Debug: patch_file = {patch_file}")
-    if patch_file:
-        print(f"Debug: os.path.exists(patch_file) = {os.path.exists(patch_file)}")
     if patch_file and os.path.exists(patch_file):
         print("Applying unstaged changes from worktree...")
         try:
@@ -490,9 +485,6 @@ def intervene_worktree(branch_name):
                     os.unlink(patch_file)
                 except:
                     pass
-    else:
-        if patch_file:
-            print(f"Warning: Patch file was created but doesn't exist: {patch_file}")
 
     print(f"\nSuccessfully intervened on worktree '{branch_name}'")
     print(f"You are now on branch '{branch_name}' in the main repository.")
