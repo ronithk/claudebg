@@ -488,7 +488,7 @@ def intervene_worktree(branch_name):
     )
     if response == "y":
         print("Starting claude code session...")
-        os.system("code")
+        os.execvp("zellij", ["zellij", "--layout", "claude"])
 
     print(f"\nSuccessfully intervened on worktree '{branch_name}'")
     print(f"You are now on branch '{branch_name}' in the main repository.")
