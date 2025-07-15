@@ -433,16 +433,18 @@ def intervene_worktree(branch_name):
     patch_file = None
     if has_unstaged_changes(cwd=worktree_path):
         print(f"Found unstaged changes in worktree '{branch_name}'")
-        # Create temporary patch file
-        with tempfile.NamedTemporaryFile(mode='w', delete=False, suffix='.patch') as f:
-            patch_file = f.name
-
+        
         # Export changes to patch file
         print(f"Exporting changes to patch file...")
         patch_content = run_command("git diff", cwd=worktree_path).stdout
-        with open(patch_file, 'w') as f:
-            f.write(patch_content)
-
+        
+        # Only create patch file if there's actual content
+        if patch_content.strip():
+            # Create temporary patch file
+            with tempfile.NamedTemporaryFile(mode='w', delete=False, suffix='.patch') as f:
+                patch_file = f.name
+                f.write(patch_content)
+        
         # Reset worktree to latest commit
         print(f"Resetting worktree to latest commit...")
         run_command("git reset --hard", cwd=worktree_path)
