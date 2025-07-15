@@ -390,7 +390,7 @@ def destroy_worktree_interactive(force=False):
 
 
 def has_unstaged_changes(cwd=None):
-    """Check if there are unstaged changes in the working directory."""
+    """Check if there are unstaged changes or untracked files in the working directory."""
     result = run_command("git status --porcelain", check=False, cwd=cwd)
     return bool(result.stdout.strip())
 
@@ -438,16 +438,24 @@ def intervene_worktree(branch_name):
 
         # Export changes to patch file
         print(f"Exporting changes to patch file...")
-        patch_content = run_command("git diff", cwd=worktree_path).stdout
+        
+        # First, add all untracked files to the index temporarily
+        run_command("git add -A", cwd=worktree_path)
+        
+        # Now get the diff of everything (staged changes)
+        patch_content = run_command("git diff --cached", cwd=worktree_path).stdout
 
         # Only create patch file if there's actual content
-        if patch_content.strip():
+        if patch_content:
             # Create temporary patch file
             with tempfile.NamedTemporaryFile(
                 mode="w", delete=False, suffix=".patch"
             ) as f:
                 patch_file = f.name
                 f.write(patch_content)
+            print(f"Created patch file: {patch_file} ({len(patch_content)} bytes)")
+        else:
+            print("Warning: No diff content found")
 
         # Reset worktree to latest commit
         print(f"Resetting worktree to latest commit...")
@@ -462,6 +470,9 @@ def intervene_worktree(branch_name):
     run_command(f"git checkout {branch_name}")
 
     # Apply patch if we created one
+    print(f"Debug: patch_file = {patch_file}")
+    if patch_file:
+        print(f"Debug: os.path.exists(patch_file) = {os.path.exists(patch_file)}")
     if patch_file and os.path.exists(patch_file):
         print("Applying unstaged changes from worktree...")
         try:
@@ -479,6 +490,12 @@ def intervene_worktree(branch_name):
                     os.unlink(patch_file)
                 except:
                     pass
+    else:
+        if patch_file:
+            print(f"Warning: Patch file was created but doesn't exist: {patch_file}")
+
+    print(f"\nSuccessfully intervened on worktree '{branch_name}'")
+    print(f"You are now on branch '{branch_name}' in the main repository.")
 
     # Prompt to start claude code session
     response = (
@@ -489,9 +506,6 @@ def intervene_worktree(branch_name):
     if response == "y":
         print("Starting claude code session...")
         os.execvp("zellij", ["zellij", "--layout", "claude"])
-
-    print(f"\nSuccessfully intervened on worktree '{branch_name}'")
-    print(f"You are now on branch '{branch_name}' in the main repository.")
 
 
 def destroy_worktree(branch_name, force=False):
