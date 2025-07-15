@@ -10,6 +10,7 @@ import os
 import subprocess
 from pathlib import Path
 from simple_term_menu import TerminalMenu
+import tempfile
 
 
 def run_command(cmd, cwd=None, check=True, input=None):
@@ -97,6 +98,7 @@ def main():
         print(
             "                                   --force: skip merge check and force delete"
         )
+        print("  intervene <branch-name>          Move worktree changes back to main repo")
         sys.exit(1)
 
     command = sys.argv[1]
@@ -144,6 +146,12 @@ def main():
         else:
             # Direct mode with branch name
             destroy_worktree(branch_name, force=force)
+    elif command == "intervene":
+        if len(sys.argv) != 3:
+            print("Usage: claudebg intervene <branch-name>")
+            sys.exit(1)
+        branch_name = sys.argv[2]
+        intervene_worktree(branch_name)
     else:
         print(f"Unknown command: {command}")
         print("Usage: claudebg <command> [args]")
@@ -160,6 +168,7 @@ def main():
         print(
             "                                   --force: skip merge check and force delete"
         )
+        print("  intervene <branch-name>          Move worktree changes back to main repo")
         sys.exit(1)
 
 
@@ -378,6 +387,101 @@ def destroy_worktree_interactive(force=False):
         destroy_worktree(selected_branch, force=force)
     else:
         print("Cancelled.")
+
+
+def has_unstaged_changes(cwd=None):
+    """Check if there are unstaged changes in the working directory."""
+    result = run_command("git status --porcelain", check=False, cwd=cwd)
+    return bool(result.stdout.strip())
+
+
+def stash_changes():
+    """Stash changes interactively."""
+    print("You have unstaged changes in your working directory.")
+    response = input("Would you like to stash them to continue? (y/n): ").strip().lower()
+    if response == 'y':
+        run_command("git stash push -m 'claudebg intervene: stashed changes'")
+        return True
+    return False
+
+
+def intervene_worktree(branch_name):
+    """Move worktree changes back to main repository."""
+    # Get current directory and git root
+    current_dir = os.getcwd()
+    git_root = get_git_root()
+
+    # Ensure we're in the main repository directory
+    if current_dir != git_root:
+        print(f"Error: This command must be run from the main repository directory.")
+        print(f"Please cd to {git_root} and try again.")
+        sys.exit(1)
+
+    # Check if worktree exists
+    worktree_path = get_worktree_path(branch_name)
+    if not worktree_path:
+        print(f"Error: No worktree found for branch '{branch_name}'")
+        sys.exit(1)
+
+    # Check for unstaged changes in main repo
+    if has_unstaged_changes():
+        if not stash_changes():
+            print("Operation cancelled.")
+            sys.exit(1)
+
+    # Check for unstaged changes in worktree
+    patch_file = None
+    if has_unstaged_changes(cwd=worktree_path):
+        print(f"Found unstaged changes in worktree '{branch_name}'")
+        # Create temporary patch file
+        with tempfile.NamedTemporaryFile(mode='w', delete=False, suffix='.patch') as f:
+            patch_file = f.name
+
+        # Export changes to patch file
+        print(f"Exporting changes to patch file...")
+        patch_content = run_command("git diff", cwd=worktree_path).stdout
+        with open(patch_file, 'w') as f:
+            f.write(patch_content)
+
+        # Reset worktree to latest commit
+        print(f"Resetting worktree to latest commit...")
+        run_command("git reset --hard", cwd=worktree_path)
+
+    # Remove the worktree
+    print(f"Removing worktree at: {worktree_path}")
+    run_command(f"git worktree remove --force '{worktree_path}'")
+
+    # Checkout the branch in main repository
+    print(f"Checking out branch '{branch_name}' in main repository...")
+    run_command(f"git checkout {branch_name}")
+
+    # Apply patch if we created one
+    if patch_file and os.path.exists(patch_file):
+        print("Applying unstaged changes from worktree...")
+        try:
+            run_command(f"git apply '{patch_file}'")
+            print("Successfully applied changes.")
+        except SystemExit:
+            print("Error: Failed to apply patch. The patch file has been saved at:")
+            print(patch_file)
+            print("You can manually apply it later with: git apply " + patch_file)
+            sys.exit(1)
+        finally:
+            # Clean up patch file only if apply succeeded
+            if os.path.exists(patch_file):
+                try:
+                    os.unlink(patch_file)
+                except:
+                    pass
+
+    # Prompt to start claude code session
+    response = input("\nWould you like to start a claude code session? (y/n): ").strip().lower()
+    if response == 'y':
+        print("Starting claude code session...")
+        os.system("code")
+
+    print(f"\nSuccessfully intervened on worktree '{branch_name}'")
+    print(f"You are now on branch '{branch_name}' in the main repository.")
 
 
 def destroy_worktree(branch_name, force=False):
