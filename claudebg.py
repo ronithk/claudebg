@@ -421,16 +421,6 @@ def stash_changes():
 
 def intervene_worktree_interactive():
     """Interactive mode for intervene command - let user select from existing worktrees."""
-    # Get current directory and git root
-    current_dir = os.getcwd()
-    git_root = get_git_root()
-
-    # Ensure we're in the main repository directory
-    if current_dir != git_root:
-        print(f"Error: This command must be run from the main repository directory.")
-        print(f"Please cd to {git_root} and try again.")
-        sys.exit(1)
-
     # Get all worktrees (excluding main)
     worktrees = get_all_worktrees()
     if not worktrees:
@@ -471,11 +461,10 @@ def intervene_worktree(branch_name):
     current_dir = os.getcwd()
     git_root = get_git_root()
 
-    # Ensure we're in the main repository directory
-    if current_dir != git_root:
-        print(f"Error: This command must be run from the main repository directory.")
-        print(f"Please cd to {git_root} and try again.")
-        sys.exit(1)
+    # Calculate relative path from git root to current directory
+    relative_path = os.path.relpath(current_dir, git_root)
+    if relative_path == ".":
+        relative_path = ""
 
     # Check if worktree exists
     worktree_path = get_worktree_path(branch_name)
@@ -488,6 +477,10 @@ def intervene_worktree(branch_name):
         if not stash_changes():
             print("Operation cancelled.")
             sys.exit(1)
+
+    # Change to git root for git operations
+    original_dir = os.getcwd()
+    os.chdir(git_root)
 
     # Check for unstaged changes in worktree
     patch_file = None
@@ -546,6 +539,14 @@ def intervene_worktree(branch_name):
 
     print(f"\nSuccessfully intervened on worktree '{branch_name}'")
     print(f"You are now on branch '{branch_name}' in the main repository.")
+
+    # Return to original directory (or create it if needed)
+    if relative_path:
+        target_dir = os.path.join(os.getcwd(), relative_path)
+        os.makedirs(target_dir, exist_ok=True)
+        os.chdir(target_dir)
+    else:
+        os.chdir(original_dir)
 
     # Prompt to start claude code session
     response = (
