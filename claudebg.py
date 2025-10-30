@@ -97,7 +97,10 @@ def main():
             "                                   --force: skip merge check and force delete"
         )
         print(
-            "  intervene <branch-name>          Move worktree changes back to main repo"
+            "  intervene [branch-name]          Move worktree changes back to main repo"
+        )
+        print(
+            "                                   (interactive mode if no branch name given)"
         )
         sys.exit(1)
 
@@ -147,11 +150,17 @@ def main():
             # Direct mode with branch name
             destroy_worktree(branch_name, force=force)
     elif command == "intervene":
-        if len(sys.argv) != 3:
-            print("Usage: claudebg intervene <branch-name>")
+        if len(sys.argv) > 3:
+            print("Usage: claudebg intervene [branch-name]")
             sys.exit(1)
-        branch_name = sys.argv[2]
-        intervene_worktree(branch_name)
+
+        if len(sys.argv) == 3:
+            # Direct mode with branch name
+            branch_name = sys.argv[2]
+            intervene_worktree(branch_name)
+        else:
+            # Interactive mode
+            intervene_worktree_interactive()
     else:
         print(f"Unknown command: {command}")
         print("Usage: claudebg <command> [args]")
@@ -167,7 +176,10 @@ def main():
             "                                   --force: skip merge check and force delete"
         )
         print(
-            "  intervene <branch-name>          Move worktree changes back to main repo"
+            "  intervene [branch-name]          Move worktree changes back to main repo"
+        )
+        print(
+            "                                   (interactive mode if no branch name given)"
         )
         sys.exit(1)
 
@@ -405,6 +417,52 @@ def stash_changes():
         run_command("git stash push -m 'claudebg intervene: stashed changes'")
         return True
     return False
+
+
+def intervene_worktree_interactive():
+    """Interactive mode for intervene command - let user select from existing worktrees."""
+    # Get current directory and git root
+    current_dir = os.getcwd()
+    git_root = get_git_root()
+
+    # Ensure we're in the main repository directory
+    if current_dir != git_root:
+        print(f"Error: This command must be run from the main repository directory.")
+        print(f"Please cd to {git_root} and try again.")
+        sys.exit(1)
+
+    # Get all worktrees (excluding main)
+    worktrees = get_all_worktrees()
+    if not worktrees:
+        print("No worktrees found.")
+        sys.exit(1)
+
+    # Create menu options
+    menu_options = []
+    for branch_name, path in worktrees:
+        menu_options.append(branch_name)
+
+    # Add cancel option
+    menu_options.append("Cancel")
+
+    # Show interactive menu
+    menu = TerminalMenu(
+        menu_options,
+        title="Select worktree to intervene:",
+    )
+    menu_entry_index = menu.show()
+
+    # Handle selection
+    if menu_entry_index is None or menu_entry_index == len(menu_options) - 1:
+        print("Operation cancelled.")
+        sys.exit(0)
+
+    # Get selected branch name
+    selected_branch = menu_options[menu_entry_index]
+    print(f"Selected worktree: {selected_branch}")
+
+    # Call the regular intervene function
+    intervene_worktree(selected_branch)
 
 
 def intervene_worktree(branch_name):
