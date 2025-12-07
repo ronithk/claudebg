@@ -284,7 +284,7 @@ def create_worktree(branch_name):
     # Change to the target directory and run zellij
     os.chdir(target_dir)
     print(f"Launching zellij in: {target_dir}")
-    os.execvp("zellij", ["zellij", "--layout", "claude"])
+    os.execvp("zellij", ["zellij", "--layout", "code"])
 
 
 def attach_worktree(branch_name):
@@ -315,7 +315,7 @@ def attach_worktree(branch_name):
     # Change to the target directory and run zellij
     os.chdir(target_dir)
     print(f"Attaching to worktree in: {target_dir}")
-    os.execvp("zellij", ["zellij", "--layout", "claude"])
+    os.execvp("zellij", ["zellij", "--layout", "code"])
 
 
 def attach_worktree_interactive():
@@ -656,7 +656,7 @@ def intervene_worktree(branch_name):
     )
     if response == "y":
         print("Starting claude code session...")
-        os.execvp("zellij", ["zellij", "--layout", "claude"])
+        os.execvp("zellij", ["zellij", "--layout", "code"])
 
 
 def spinout_worktree():
@@ -848,7 +848,7 @@ def spinout_worktree():
         # Change to the target directory and run zellij
         os.chdir(target_dir)
         print(f"Launching zellij in: {target_dir}")
-        os.execvp("zellij", ["zellij", "--layout", "claude"])
+        os.execvp("zellij", ["zellij", "--layout", "code"])
 
 
 def destroy_worktree(branch_name, force=False):
