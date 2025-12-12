@@ -12,6 +12,9 @@ from pathlib import Path
 from simple_term_menu import TerminalMenu
 import tempfile
 
+# Command to launch the workspace session (e.g., zellij, tmux, etc.)
+WORKSPACE_CMD = ["zellij", "--layout", "code"]
+
 
 def run_command(cmd, cwd=None, check=True, input=None):
     """Run a shell command and return the result."""
@@ -284,7 +287,7 @@ def create_worktree(branch_name):
     # Change to the target directory and run zellij
     os.chdir(target_dir)
     print(f"Launching zellij in: {target_dir}")
-    os.execvp("zellij", ["zellij", "--layout", "code"])
+    os.execvp(WORKSPACE_CMD[0], WORKSPACE_CMD)
 
 
 def attach_worktree(branch_name):
@@ -315,7 +318,7 @@ def attach_worktree(branch_name):
     # Change to the target directory and run zellij
     os.chdir(target_dir)
     print(f"Attaching to worktree in: {target_dir}")
-    os.execvp("zellij", ["zellij", "--layout", "code"])
+    os.execvp(WORKSPACE_CMD[0], WORKSPACE_CMD)
 
 
 def attach_worktree_interactive():
@@ -656,7 +659,7 @@ def intervene_worktree(branch_name):
     )
     if response == "y":
         print("Starting claude code session...")
-        os.execvp("zellij", ["zellij", "--layout", "code"])
+        os.execvp(WORKSPACE_CMD[0], WORKSPACE_CMD)
 
 
 def spinout_worktree():
@@ -848,7 +851,7 @@ def spinout_worktree():
         # Change to the target directory and run zellij
         os.chdir(target_dir)
         print(f"Launching zellij in: {target_dir}")
-        os.execvp("zellij", ["zellij", "--layout", "code"])
+        os.execvp(WORKSPACE_CMD[0], WORKSPACE_CMD)
 
 
 def destroy_worktree(branch_name, force=False):
