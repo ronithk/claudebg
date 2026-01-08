@@ -8,12 +8,13 @@
 import sys
 import os
 import subprocess
+import shlex
 from pathlib import Path
 from simple_term_menu import TerminalMenu
 import tempfile
 
 # Command to launch the workspace session (e.g., zellij, tmux, etc.)
-WORKSPACE_CMD = ["zellij", "--layout", "code"]
+WORKSPACE_CMD = ["vim", "."]
 
 
 def run_command(cmd, cwd=None, check=True, input=None):
@@ -268,10 +269,12 @@ def create_worktree(branch_name):
             set_branch_parent(branch_name, parent_branch)
             run_command("git checkout -")  # Switch back to original branch
 
-        # Create worktree as sibling directory
+        # Create worktree inside the worktrees container directory
         parent_dir = os.path.dirname(git_root)
         repo_name = os.path.basename(git_root)
-        worktree_dir = os.path.join(parent_dir, f"{repo_name}-{branch_name}")
+        worktrees_container = os.path.join(parent_dir, f"{repo_name}-worktrees")
+        os.makedirs(worktrees_container, exist_ok=True)
+        worktree_dir = os.path.join(worktrees_container, branch_name)
 
         print(f"Creating new worktree at: {worktree_dir}")
         run_command(f"git worktree add '{worktree_dir}' '{branch_name}'")
@@ -284,10 +287,12 @@ def create_worktree(branch_name):
         # Create subdirectory if it doesn't exist
         os.makedirs(target_dir, exist_ok=True)
 
-    # Change to the target directory and run zellij
+    # Change to the target directory and exec into shell running workspace command
     os.chdir(target_dir)
-    print(f"Launching zellij in: {target_dir}")
-    os.execvp(WORKSPACE_CMD[0], WORKSPACE_CMD)
+    print(f"Launching workspace in: {target_dir}")
+    shell = os.environ.get("SHELL", "/bin/bash")
+    workspace_cmd_str = shlex.join(WORKSPACE_CMD)
+    os.execvp(shell, [shell, "-c", f"{workspace_cmd_str}; exec {shell}"])
 
 
 def attach_worktree(branch_name):
@@ -315,10 +320,12 @@ def attach_worktree(branch_name):
         # Create subdirectory if it doesn't exist
         os.makedirs(target_dir, exist_ok=True)
 
-    # Change to the target directory and run zellij
+    # Change to the target directory and exec into shell running workspace command
     os.chdir(target_dir)
     print(f"Attaching to worktree in: {target_dir}")
-    os.execvp(WORKSPACE_CMD[0], WORKSPACE_CMD)
+    shell = os.environ.get("SHELL", "/bin/bash")
+    workspace_cmd_str = shlex.join(WORKSPACE_CMD)
+    os.execvp(shell, [shell, "-c", f"{workspace_cmd_str}; exec {shell}"])
 
 
 def attach_worktree_interactive():
@@ -659,7 +666,9 @@ def intervene_worktree(branch_name):
     )
     if response == "y":
         print("Starting claude code session...")
-        os.execvp(WORKSPACE_CMD[0], WORKSPACE_CMD)
+        shell = os.environ.get("SHELL", "/bin/bash")
+        workspace_cmd_str = shlex.join(WORKSPACE_CMD)
+        os.execvp(shell, [shell, "-c", f"{workspace_cmd_str}; exec {shell}"])
 
 
 def spinout_worktree():
@@ -751,10 +760,12 @@ def spinout_worktree():
         # Switch to the temporary branch
         run_command(f"git checkout {temp_branch}")
     
-    # Create the worktree
+    # Create the worktree inside the worktrees container directory
     parent_dir = os.path.dirname(git_root)
     repo_name = os.path.basename(git_root)
-    worktree_dir = os.path.join(parent_dir, f"{repo_name}-{current_branch}")
+    worktrees_container = os.path.join(parent_dir, f"{repo_name}-worktrees")
+    os.makedirs(worktrees_container, exist_ok=True)
+    worktree_dir = os.path.join(worktrees_container, current_branch)
     
     print(f"Creating worktree at: {worktree_dir}")
     run_command(f"git worktree add '{worktree_dir}' '{current_branch}'")
@@ -848,10 +859,12 @@ def spinout_worktree():
             # Create subdirectory if it doesn't exist
             os.makedirs(target_dir, exist_ok=True)
         
-        # Change to the target directory and run zellij
+        # Change to the target directory and exec into shell running workspace command
         os.chdir(target_dir)
-        print(f"Launching zellij in: {target_dir}")
-        os.execvp(WORKSPACE_CMD[0], WORKSPACE_CMD)
+        print(f"Launching workspace in: {target_dir}")
+        shell = os.environ.get("SHELL", "/bin/bash")
+        workspace_cmd_str = shlex.join(WORKSPACE_CMD)
+        os.execvp(shell, [shell, "-c", f"{workspace_cmd_str}; exec {shell}"])
 
 
 def destroy_worktree(branch_name, force=False):
